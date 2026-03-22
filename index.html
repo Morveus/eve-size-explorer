@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVE Size Explorer - Ship Scale Comparison</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #0a0a12;
+            color: #c0c0c0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: linear-gradient(180deg, #12121e 0%, #0a0a12 100%);
+            border-bottom: 1px solid #1a1a2e;
+            padding: 20px 30px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header h1 {
+            font-size: 1.4em;
+            color: #e0e0e0;
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        header h1 span {
+            color: #4fc3f7;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .controls label {
+            font-size: 0.85em;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .controls select, .controls input {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4e;
+            color: #c0c0c0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .controls select:focus, .controls input:focus {
+            outline: none;
+            border-color: #4fc3f7;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .scale-info {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4e;
+            border-radius: 4px;
+            padding: 8px 14px;
+            font-size: 0.85em;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .scale-info strong {
+            color: #4fc3f7;
+        }
+
+        #viewport {
+            position: relative;
+            min-height: calc(100vh - 120px);
+            overflow: auto;
+            cursor: grab;
+        }
+
+        #viewport:active {
+            cursor: grabbing;
+        }
+
+        #canvas {
+            position: relative;
+            margin: 40px auto;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 5px;
+            padding: 20px;
+            padding-bottom: 60px;
+        }
+
+        .ship-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: filter 0.2s;
+            position: relative;
+        }
+
+        .ship-container:hover {
+            filter: brightness(1.3);
+        }
+
+        .ship-container img {
+            image-rendering: auto;
+            display: block;
+        }
+
+        .ship-label {
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+            white-space: nowrap;
+            margin-top: 2px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ship-label .ship-size {
+            color: #4fc3f7;
+            font-size: 9px;
+        }
+
+        .ship-container.selected {
+            filter: brightness(1.3) drop-shadow(0 0 8px #4fc3f7);
+        }
+
+        .ruler {
+            position: fixed;
+            right: 20px;
+            bottom: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .ruler-bar {
+            width: 4px;
+            background: #4fc3f7;
+            position: relative;
+        }
+
+        .ruler-label {
+            color: #4fc3f7;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .ruler-tick {
+            position: absolute;
+            right: 0;
+            width: 12px;
+            height: 1px;
+            background: #4fc3f7;
+        }
+
+        .tooltip {
+            display: none;
+            position: fixed;
+            background: #1a1a2e;
+            border: 1px solid #4fc3f7;
+            border-radius: 6px;
+            padding: 12px 16px;
+            z-index: 200;
+            pointer-events: none;
+            min-width: 200px;
+        }
+
+        .tooltip.visible {
+            display: block;
+        }
+
+        .tooltip h3 {
+            color: #4fc3f7;
+            font-size: 1em;
+            margin-bottom: 6px;
+        }
+
+        .tooltip .detail {
+            font-size: 0.85em;
+            color: #888;
+            line-height: 1.6;
+        }
+
+        .tooltip .detail strong {
+            color: #c0c0c0;
+        }
+
+        .ground-line {
+            position: absolute;
+            bottom: 50px;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, #2a2a4e 20%, #2a2a4e 80%, transparent 100%);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #555;
+        }
+
+        .empty-state h2 {
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .zoom-controls button {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4e;
+            color: #c0c0c0;
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zoom-controls button:hover {
+            border-color: #4fc3f7;
+            color: #4fc3f7;
+        }
+
+        #zoom-display {
+            font-size: 0.85em;
+            color: #888;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .loading-bar {
+            height: 2px;
+            background: #4fc3f7;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+<div class="loading-bar" id="loading-bar"></div>
+
+<header>
+    <h1>EVE <span>Size</span> Explorer</h1>
+    <div class="controls">
+        <div class="control-group">
+            <label>Group</label>
+            <select id="group-filter">
+                <option value="all">All Ships</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Search</label>
+            <input type="text" id="search" placeholder="Ship name...">
+        </div>
+        <div class="control-group">
+            <label>Sort</label>
+            <select id="sort-by">
+                <option value="radius-desc">Largest first</option>
+                <option value="radius-asc">Smallest first</option>
+                <option value="name-asc">Name A-Z</option>
+                <option value="group">By group</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Zoom</label>
+            <div class="zoom-controls">
+                <button id="zoom-out">-</button>
+                <span id="zoom-display">100%</span>
+                <button id="zoom-in">+</button>
+                <button id="zoom-fit" title="Fit to screen">[ ]</button>
+            </div>
+        </div>
+        <div class="scale-info" id="scale-info">
+            <span>Scale: <strong id="px-per-m">1</strong> px/m</span>
+            <span>|</span>
+            <span>Ships: <strong id="ship-count">0</strong></span>
+        </div>
+    </div>
+</header>
+
+<div id="viewport">
+    <div id="canvas">
+        <div class="ground-line"></div>
+    </div>
+</div>
+
+<div class="ruler" id="ruler"></div>
+
+<div class="tooltip" id="tooltip">
+    <h3 id="tip-name"></h3>
+    <div class="detail" id="tip-detail"></div>
+</div>
+
+<script>
+const IMAGE_BASE = 'https://images.evetech.net/types';
+const RENDER_SIZE = 512; // Use 512px renders for performance
+
+let allShips = [];
+let filteredShips = [];
+let pxPerMeter = 0.5; // pixels per meter
+let minPxPerMeter = 0.001;
+let maxPxPerMeter = 10;
+
+// Load ship data
+async function loadData() {
+    const resp = await fetch('data/ships.json');
+    const data = await resp.json();
+    allShips = data.ships.filter(s => s.radius > 0);
+
+    // Populate group filter
+    const groups = [...new Set(allShips.map(s => s.group))].sort();
+    const groupSelect = document.getElementById('group-filter');
+    groups.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g;
+        opt.textContent = `${g} (${allShips.filter(s => s.group === g).length})`;
+        groupSelect.appendChild(opt);
+    });
+
+    applyFilters();
+}
+
+function applyFilters() {
+    const group = document.getElementById('group-filter').value;
+    const search = document.getElementById('search').value.toLowerCase();
+    const sortBy = document.getElementById('sort-by').value;
+
+    filteredShips = allShips.filter(s => {
+        if (group !== 'all' && s.group !== group) return false;
+        if (search && !s.name.toLowerCase().includes(search)) return false;
+        return true;
+    });
+
+    // Sort
+    switch (sortBy) {
+        case 'radius-desc':
+            filteredShips.sort((a, b) => b.radius - a.radius);
+            break;
+        case 'radius-asc':
+            filteredShips.sort((a, b) => a.radius - b.radius);
+            break;
+        case 'name-asc':
+            filteredShips.sort((a, b) => a.name.localeCompare(b.name));
+            break;
+        case 'group':
+            filteredShips.sort((a, b) => a.group.localeCompare(b.group) || b.radius - a.radius);
+            break;
+    }
+
+    document.getElementById('ship-count').textContent = filteredShips.length;
+    render();
+}
+
+function formatSize(meters) {
+    if (meters >= 1000) return `${(meters / 1000).toFixed(1)} km`;
+    return `${Math.round(meters)} m`;
+}
+
+function render() {
+    const canvas = document.getElementById('canvas');
+    // Keep ground line
+    canvas.innerHTML = '<div class="ground-line"></div>';
+
+    const loadingBar = document.getElementById('loading-bar');
+    let loaded = 0;
+
+    filteredShips.forEach((ship, idx) => {
+        // Diameter in pixels (radius is half the bounding sphere)
+        const diameterM = ship.radius * 2;
+        const sizePx = Math.max(diameterM * pxPerMeter, 4); // minimum 4px
+
+        const container = document.createElement('div');
+        container.className = 'ship-container';
+        container.dataset.idx = idx;
+
+        const img = document.createElement('img');
+        // Choose render resolution based on display size
+        const renderRes = sizePx > 256 ? 1024 : sizePx > 64 ? 512 : 256;
+        img.src = `${IMAGE_BASE}/${ship.typeID}/render?size=${renderRes}`;
+        img.alt = ship.name;
+        img.width = Math.round(sizePx);
+        img.height = Math.round(sizePx);
+        img.loading = 'lazy';
+        img.onload = () => {
+            loaded++;
+            loadingBar.style.width = `${(loaded / filteredShips.length) * 100}%`;
+            if (loaded >= filteredShips.length) {
+                setTimeout(() => loadingBar.style.width = '0%', 500);
+            }
+        };
+        img.onerror = () => {
+            container.style.display = 'none';
+        };
+
+        const label = document.createElement('div');
+        label.className = 'ship-label';
+
+        // Only show labels if ships are big enough
+        if (sizePx > 30) {
+            label.innerHTML = `${ship.name}<br><span class="ship-size">${formatSize(diameterM)}</span>`;
+        }
+
+        container.appendChild(img);
+        container.appendChild(label);
+
+        // Tooltip events
+        container.addEventListener('mouseenter', (e) => showTooltip(e, ship));
+        container.addEventListener('mouseleave', hideTooltip);
+        container.addEventListener('mousemove', moveTooltip);
+
+        canvas.appendChild(container);
+    });
+
+    updateRuler();
+    updateScaleInfo();
+}
+
+function showTooltip(e, ship) {
+    const tip = document.getElementById('tooltip');
+    const diameterM = ship.radius * 2;
+    document.getElementById('tip-name').textContent = ship.name;
+    document.getElementById('tip-detail').innerHTML = `
+        <strong>Group:</strong> ${ship.group}<br>
+        <strong>Diameter:</strong> ${formatSize(diameterM)}<br>
+        <strong>Radius:</strong> ${formatSize(ship.radius)}<br>
+        <strong>Mass:</strong> ${ship.mass ? (ship.mass / 1e6).toFixed(1) + ' kt' : 'N/A'}<br>
+        <strong>Volume:</strong> ${ship.volume ? ship.volume.toLocaleString() + ' m\u00B3' : 'N/A'}
+    `;
+    tip.classList.add('visible');
+    moveTooltip(e);
+}
+
+function moveTooltip(e) {
+    const tip = document.getElementById('tooltip');
+    const x = e.clientX + 15;
+    const y = e.clientY + 15;
+    // Keep tooltip on screen
+    const maxX = window.innerWidth - tip.offsetWidth - 10;
+    const maxY = window.innerHeight - tip.offsetHeight - 10;
+    tip.style.left = Math.min(x, maxX) + 'px';
+    tip.style.top = Math.min(y, maxY) + 'px';
+}
+
+function hideTooltip() {
+    document.getElementById('tooltip').classList.remove('visible');
+}
+
+function updateRuler() {
+    const ruler = document.getElementById('ruler');
+    ruler.innerHTML = '';
+
+    // Figure out a nice ruler height
+    const viewH = window.innerHeight - 150;
+    const rulerM = viewH / pxPerMeter;
+
+    // Pick nice round number
+    let niceM;
+    const candidates = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 50000, 100000];
+    niceM = candidates.find(c => c * pxPerMeter >= 40 && c * pxPerMeter <= viewH - 40) || candidates[candidates.length - 1];
+
+    const barH = niceM * pxPerMeter;
+
+    const bar = document.createElement('div');
+    bar.className = 'ruler-bar';
+    bar.style.height = barH + 'px';
+
+    // Top tick
+    const tickTop = document.createElement('div');
+    tickTop.className = 'ruler-tick';
+    tickTop.style.top = '0px';
+    bar.appendChild(tickTop);
+
+    // Bottom tick
+    const tickBot = document.createElement('div');
+    tickBot.className = 'ruler-tick';
+    tickBot.style.bottom = '0px';
+    bar.appendChild(tickBot);
+
+    ruler.appendChild(bar);
+
+    const label = document.createElement('div');
+    label.className = 'ruler-label';
+    label.textContent = formatSize(niceM);
+    ruler.appendChild(label);
+}
+
+function updateScaleInfo() {
+    document.getElementById('px-per-m').textContent = pxPerMeter >= 1 ? pxPerMeter.toFixed(1) : pxPerMeter.toFixed(3);
+}
+
+function setZoom(newPxPerM) {
+    pxPerMeter = Math.max(minPxPerMeter, Math.min(maxPxPerMeter, newPxPerM));
+    document.getElementById('zoom-display').textContent =
+        pxPerMeter >= 0.01 ? `${(pxPerMeter * 100).toFixed(0)}%` : `${(pxPerMeter * 100).toFixed(2)}%`;
+    render();
+}
+
+function fitToScreen() {
+    if (filteredShips.length === 0) return;
+    const maxRadius = Math.max(...filteredShips.map(s => s.radius));
+    const maxDiameter = maxRadius * 2;
+    const viewH = window.innerHeight - 200;
+    const targetPx = Math.min(viewH, 600);
+    setZoom(targetPx / maxDiameter);
+}
+
+// Event listeners
+document.getElementById('group-filter').addEventListener('change', applyFilters);
+document.getElementById('search').addEventListener('input', applyFilters);
+document.getElementById('sort-by').addEventListener('change', applyFilters);
+document.getElementById('zoom-in').addEventListener('click', () => setZoom(pxPerMeter * 1.5));
+document.getElementById('zoom-out').addEventListener('click', () => setZoom(pxPerMeter / 1.5));
+document.getElementById('zoom-fit').addEventListener('click', fitToScreen);
+
+// Keyboard zoom
+document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === '+' || e.key === '=') setZoom(pxPerMeter * 1.5);
+    if (e.key === '-') setZoom(pxPerMeter / 1.5);
+    if (e.key === '0') fitToScreen();
+});
+
+// Mouse wheel zoom
+document.getElementById('viewport').addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    setZoom(pxPerMeter * factor);
+}, { passive: false });
+
+// Init
+loadData().then(() => {
+    fitToScreen();
+});
+</script>
+
+</body>
+</html>
