@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>EVE Size Explorer - Ship Scale Comparison</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -11,52 +11,56 @@
             background: #0a0a12;
             color: #c0c0c0;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            overflow-x: hidden;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
         }
 
         header {
-            background: linear-gradient(180deg, #12121e 0%, #0a0a12 100%);
+            background: rgba(18, 18, 30, 0.95);
             border-bottom: 1px solid #1a1a2e;
-            padding: 20px 30px;
-            position: sticky;
+            padding: 12px 20px;
+            position: fixed;
             top: 0;
+            left: 0;
+            right: 0;
             z-index: 100;
+            backdrop-filter: blur(10px);
         }
 
         header h1 {
-            font-size: 1.4em;
+            font-size: 1.2em;
             color: #e0e0e0;
             font-weight: 300;
             letter-spacing: 2px;
             text-transform: uppercase;
+            display: inline;
         }
 
-        header h1 span {
-            color: #4fc3f7;
-        }
+        header h1 span { color: #4fc3f7; }
 
         .controls {
             display: flex;
-            gap: 15px;
-            margin-top: 15px;
+            gap: 12px;
+            margin-top: 10px;
             flex-wrap: wrap;
             align-items: center;
         }
 
         .controls label {
-            font-size: 0.85em;
-            color: #888;
+            font-size: 0.75em;
+            color: #666;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
-        .controls select, .controls input {
+        .controls select, .controls input[type="text"] {
             background: #1a1a2e;
             border: 1px solid #2a2a4e;
             color: #c0c0c0;
-            padding: 8px 12px;
+            padding: 6px 10px;
             border-radius: 4px;
-            font-size: 0.9em;
+            font-size: 0.85em;
         }
 
         .controls select:focus, .controls input:focus {
@@ -67,90 +71,39 @@
         .control-group {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 3px;
         }
 
         .scale-info {
             background: #1a1a2e;
             border: 1px solid #2a2a4e;
             border-radius: 4px;
-            padding: 8px 14px;
-            font-size: 0.85em;
+            padding: 6px 12px;
+            font-size: 0.8em;
             color: #888;
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .scale-info strong {
-            color: #4fc3f7;
-        }
+        .scale-info strong { color: #4fc3f7; }
 
         #viewport {
-            position: relative;
-            min-height: calc(100vh - 120px);
-            overflow: auto;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             cursor: grab;
+            touch-action: none;
         }
 
-        #viewport:active {
-            cursor: grabbing;
-        }
-
-        #canvas {
-            position: relative;
-            margin: 40px auto;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: flex-end;
-            justify-content: center;
-            gap: 5px;
-            padding: 20px;
-            padding-bottom: 60px;
-        }
-
-        .ship-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            cursor: pointer;
-            transition: filter 0.2s;
-            position: relative;
-        }
-
-        .ship-container:hover {
-            filter: brightness(1.3);
-        }
-
-        .ship-container img {
-            image-rendering: auto;
-            display: block;
-        }
-
-        .ship-label {
-            font-size: 10px;
-            color: #666;
-            text-align: center;
-            white-space: nowrap;
-            margin-top: 2px;
-            max-width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .ship-label .ship-size {
-            color: #4fc3f7;
-            font-size: 9px;
-        }
-
-        .ship-container.selected {
-            filter: brightness(1.3) drop-shadow(0 0 8px #4fc3f7);
-        }
+        #viewport.dragging { cursor: grabbing; }
 
         .ruler {
             position: fixed;
-            right: 20px;
-            bottom: 40px;
+            right: 16px;
+            bottom: 30px;
             display: flex;
             flex-direction: column;
             align-items: flex-end;
@@ -159,21 +112,23 @@
         }
 
         .ruler-bar {
-            width: 4px;
+            width: 3px;
             background: #4fc3f7;
             position: relative;
+            opacity: 0.7;
         }
 
         .ruler-label {
             color: #4fc3f7;
-            font-size: 12px;
-            margin-top: 4px;
+            font-size: 11px;
+            margin-top: 3px;
+            opacity: 0.7;
         }
 
         .ruler-tick {
             position: absolute;
             right: 0;
-            width: 12px;
+            width: 10px;
             height: 1px;
             background: #4fc3f7;
         }
@@ -181,101 +136,47 @@
         .tooltip {
             display: none;
             position: fixed;
-            background: #1a1a2e;
+            background: rgba(18, 18, 30, 0.95);
             border: 1px solid #4fc3f7;
             border-radius: 6px;
-            padding: 12px 16px;
+            padding: 10px 14px;
             z-index: 200;
             pointer-events: none;
-            min-width: 200px;
+            min-width: 180px;
+            backdrop-filter: blur(10px);
         }
 
-        .tooltip.visible {
-            display: block;
-        }
+        .tooltip.visible { display: block; }
 
         .tooltip h3 {
             color: #4fc3f7;
-            font-size: 1em;
-            margin-bottom: 6px;
+            font-size: 0.95em;
+            margin-bottom: 4px;
         }
 
         .tooltip .detail {
-            font-size: 0.85em;
+            font-size: 0.8em;
             color: #888;
-            line-height: 1.6;
+            line-height: 1.5;
         }
 
-        .tooltip .detail strong {
-            color: #c0c0c0;
-        }
+        .tooltip .detail strong { color: #c0c0c0; }
 
-        .ground-line {
-            position: absolute;
-            bottom: 50px;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent 0%, #2a2a4e 20%, #2a2a4e 80%, transparent 100%);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 80px 20px;
-            color: #555;
-        }
-
-        .empty-state h2 {
-            font-weight: 300;
-            margin-bottom: 10px;
-        }
-
-        .zoom-controls {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .zoom-controls button {
-            background: #1a1a2e;
-            border: 1px solid #2a2a4e;
-            color: #c0c0c0;
-            width: 32px;
-            height: 32px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1.1em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .zoom-controls button:hover {
-            border-color: #4fc3f7;
-            color: #4fc3f7;
-        }
-
-        #zoom-display {
-            font-size: 0.85em;
-            color: #888;
-            min-width: 40px;
-            text-align: center;
-        }
-
-        .loading-bar {
-            height: 2px;
-            background: #4fc3f7;
+        .help-hint {
             position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 1000;
-            transition: width 0.3s;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75em;
+            color: #444;
+            z-index: 50;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
 
-<div class="loading-bar" id="loading-bar"></div>
+<div id="viewport"></div>
 
 <header>
     <h1>EVE <span>Size</span> Explorer</h1>
@@ -299,28 +200,13 @@
                 <option value="group">By group</option>
             </select>
         </div>
-        <div class="control-group">
-            <label>Zoom</label>
-            <div class="zoom-controls">
-                <button id="zoom-out">-</button>
-                <span id="zoom-display">100%</span>
-                <button id="zoom-in">+</button>
-                <button id="zoom-fit" title="Fit to screen">[ ]</button>
-            </div>
-        </div>
-        <div class="scale-info" id="scale-info">
-            <span>Scale: <strong id="px-per-m">1</strong> px/m</span>
-            <span>|</span>
+        <div class="scale-info">
             <span>Ships: <strong id="ship-count">0</strong></span>
+            <span>|</span>
+            <span id="scale-text"></span>
         </div>
     </div>
 </header>
-
-<div id="viewport">
-    <div id="canvas">
-        <div class="ground-line"></div>
-    </div>
-</div>
 
 <div class="ruler" id="ruler"></div>
 
@@ -329,23 +215,44 @@
     <div class="detail" id="tip-detail"></div>
 </div>
 
+<div class="help-hint">Scroll to zoom &middot; Drag to pan &middot; Hover for details</div>
+
 <script>
 const IMAGE_BASE = 'https://images.evetech.net/types';
-const RENDER_SIZE = 512; // Use 512px renders for performance
 
 let allShips = [];
 let filteredShips = [];
-let pxPerMeter = 0.5; // pixels per meter
-let minPxPerMeter = 0.001;
-let maxPxPerMeter = 10;
+let shipLayout = []; // { ship, x, y, size } in world-meters coordinates
 
-// Load ship data
+// Camera: world coordinates visible at screen center
+let cam = { x: 0, y: 0, pxPerMeter: 0.1 };
+const MIN_SCALE = 0.0002;
+const MAX_SCALE = 50;
+
+// Image cache
+const imgCache = new Map();
+
+// DOM
+const viewport = document.getElementById('viewport');
+const canvas = document.createElement('canvas');
+canvas.style.width = '100%';
+canvas.style.height = '100%';
+viewport.appendChild(canvas);
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', () => { resizeCanvas(); draw(); });
+resizeCanvas();
+
+// ---- Data loading ----
 async function loadData() {
     const resp = await fetch('data/ships.json');
     const data = await resp.json();
     allShips = data.ships.filter(s => s.radius > 0);
 
-    // Populate group filter
     const groups = [...new Set(allShips.map(s => s.group))].sort();
     const groupSelect = document.getElementById('group-filter');
     groups.forEach(g => {
@@ -369,24 +276,175 @@ function applyFilters() {
         return true;
     });
 
-    // Sort
     switch (sortBy) {
-        case 'radius-desc':
-            filteredShips.sort((a, b) => b.radius - a.radius);
-            break;
-        case 'radius-asc':
-            filteredShips.sort((a, b) => a.radius - b.radius);
-            break;
-        case 'name-asc':
-            filteredShips.sort((a, b) => a.name.localeCompare(b.name));
-            break;
-        case 'group':
-            filteredShips.sort((a, b) => a.group.localeCompare(b.group) || b.radius - a.radius);
-            break;
+        case 'radius-desc': filteredShips.sort((a, b) => b.radius - a.radius); break;
+        case 'radius-asc': filteredShips.sort((a, b) => a.radius - b.radius); break;
+        case 'name-asc': filteredShips.sort((a, b) => a.name.localeCompare(b.name)); break;
+        case 'group': filteredShips.sort((a, b) => a.group.localeCompare(b.group) || b.radius - a.radius); break;
     }
 
     document.getElementById('ship-count').textContent = filteredShips.length;
-    render();
+    layoutShips();
+    fitToContent();
+    draw();
+}
+
+// ---- Layout: pack ships in a grid, aligned at bottom, sorted left to right ----
+function layoutShips() {
+    shipLayout = [];
+    if (filteredShips.length === 0) return;
+
+    // Each ship occupies a cell based on its diameter
+    // We lay them out in a row, aligned at their bottom edge (y=0)
+    const padding = 0.15; // 15% padding between ships relative to their size
+
+    let cursorX = 0;
+
+    for (const ship of filteredShips) {
+        const diameter = ship.radius * 2;
+        const gap = diameter * padding;
+        const x = cursorX + diameter / 2; // center of ship
+        const y = -diameter / 2; // bottom at y=0, center is at -radius
+        shipLayout.push({ ship, x, y, size: diameter });
+        cursorX += diameter + gap;
+    }
+}
+
+// ---- World <-> Screen transforms ----
+function worldToScreen(wx, wy) {
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    return {
+        sx: cx + (wx - cam.x) * cam.pxPerMeter,
+        sy: cy - (wy - cam.y) * cam.pxPerMeter // flip Y: world up = screen up
+    };
+}
+
+function screenToWorld(sx, sy) {
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    return {
+        wx: cam.x + (sx - cx) / cam.pxPerMeter,
+        wy: cam.y - (sy - cy) / cam.pxPerMeter
+    };
+}
+
+// ---- Image loading ----
+function getImage(typeID, sizePx) {
+    const res = sizePx > 256 ? 1024 : sizePx > 64 ? 512 : 256;
+    const key = `${typeID}_${res}`;
+    if (imgCache.has(key)) return imgCache.get(key);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = `${IMAGE_BASE}/${typeID}/render?size=${res}`;
+    img.onload = () => draw();
+    imgCache.set(key, img);
+    return img;
+}
+
+// ---- Drawing ----
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw ground line at y=0
+    const groundScreen = worldToScreen(0, 0);
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, groundScreen.sy);
+    ctx.lineTo(canvas.width, groundScreen.sy);
+    ctx.stroke();
+
+    // Draw grid
+    drawGrid();
+
+    // Draw each ship
+    for (const item of shipLayout) {
+        const sizePx = item.size * cam.pxPerMeter;
+        if (sizePx < 1) continue; // too small to see
+
+        const { sx, sy } = worldToScreen(item.x, item.y);
+
+        // Cull off-screen
+        const halfPx = sizePx / 2;
+        if (sx + halfPx < 0 || sx - halfPx > canvas.width) continue;
+        if (sy + halfPx < 0 || sy - halfPx > canvas.height) continue;
+
+        const img = getImage(item.ship.typeID, sizePx);
+        if (img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, sx - halfPx, sy - halfPx, sizePx, sizePx);
+        } else {
+            // Placeholder circle
+            ctx.strokeStyle = '#2a2a4e';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(sx, sy, halfPx, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Label if big enough
+        if (sizePx > 40) {
+            const fontSize = Math.max(10, Math.min(14, sizePx * 0.08));
+            ctx.font = `${fontSize}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.fillStyle = 'rgba(150, 150, 150, 0.8)';
+            ctx.textAlign = 'center';
+            // Ship name below the ship
+            const labelY = sy + halfPx + fontSize + 4;
+            ctx.fillText(item.ship.name, sx, labelY);
+            // Size below name
+            ctx.fillStyle = 'rgba(79, 195, 247, 0.6)';
+            ctx.font = `${fontSize * 0.8}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.fillText(formatSize(item.size), sx, labelY + fontSize);
+        }
+    }
+
+    updateRuler();
+    updateScaleInfo();
+}
+
+function drawGrid() {
+    // Adaptive grid based on zoom level
+    const viewWidthM = canvas.width / cam.pxPerMeter;
+
+    // Pick grid spacing: nice round number
+    const candidates = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 50000, 100000, 500000];
+    const targetLines = 8;
+    const idealSpacing = viewWidthM / targetLines;
+    const spacing = candidates.find(c => c >= idealSpacing) || candidates[candidates.length - 1];
+
+    const pxSpacing = spacing * cam.pxPerMeter;
+    if (pxSpacing < 20) return; // too dense
+
+    // World bounds visible
+    const topLeft = screenToWorld(0, 0);
+    const bottomRight = screenToWorld(canvas.width, canvas.height);
+
+    const startX = Math.floor(topLeft.wx / spacing) * spacing;
+    const endX = Math.ceil(bottomRight.wx / spacing) * spacing;
+    const startY = Math.floor(bottomRight.wy / spacing) * spacing;
+    const endY = Math.ceil(topLeft.wy / spacing) * spacing;
+
+    ctx.strokeStyle = 'rgba(30, 30, 50, 0.5)';
+    ctx.lineWidth = 0.5;
+
+    // Vertical lines
+    for (let wx = startX; wx <= endX; wx += spacing) {
+        const { sx } = worldToScreen(wx, 0);
+        ctx.beginPath();
+        ctx.moveTo(sx, 0);
+        ctx.lineTo(sx, canvas.height);
+        ctx.stroke();
+    }
+
+    // Horizontal lines
+    for (let wy = startY; wy <= endY; wy += spacing) {
+        const { sy } = worldToScreen(0, wy);
+        ctx.beginPath();
+        ctx.moveTo(0, sy);
+        ctx.lineTo(canvas.width, sy);
+        ctx.stroke();
+    }
 }
 
 function formatSize(meters) {
@@ -394,64 +452,181 @@ function formatSize(meters) {
     return `${Math.round(meters)} m`;
 }
 
-function render() {
-    const canvas = document.getElementById('canvas');
-    // Keep ground line
-    canvas.innerHTML = '<div class="ground-line"></div>';
+// ---- Camera controls ----
+function fitToContent() {
+    if (shipLayout.length === 0) return;
 
-    const loadingBar = document.getElementById('loading-bar');
-    let loaded = 0;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const item of shipLayout) {
+        const half = item.size / 2;
+        minX = Math.min(minX, item.x - half);
+        maxX = Math.max(maxX, item.x + half);
+        minY = Math.min(minY, item.y - half);
+        maxY = Math.max(maxY, item.y + half);
+    }
 
-    filteredShips.forEach((ship, idx) => {
-        // Diameter in pixels (radius is half the bounding sphere)
-        const diameterM = ship.radius * 2;
-        const sizePx = Math.max(diameterM * pxPerMeter, 4); // minimum 4px
+    const worldW = maxX - minX;
+    const worldH = maxY - minY;
+    const headerH = 90;
+    const margin = 1.1; // 10% margin
 
-        const container = document.createElement('div');
-        container.className = 'ship-container';
-        container.dataset.idx = idx;
+    const scaleX = canvas.width / (worldW * margin);
+    const scaleY = (canvas.height - headerH) / (worldH * margin);
 
-        const img = document.createElement('img');
-        // Choose render resolution based on display size
-        const renderRes = sizePx > 256 ? 1024 : sizePx > 64 ? 512 : 256;
-        img.src = `${IMAGE_BASE}/${ship.typeID}/render?size=${renderRes}`;
-        img.alt = ship.name;
-        img.width = Math.round(sizePx);
-        img.height = Math.round(sizePx);
-        img.loading = 'lazy';
-        img.onload = () => {
-            loaded++;
-            loadingBar.style.width = `${(loaded / filteredShips.length) * 100}%`;
-            if (loaded >= filteredShips.length) {
-                setTimeout(() => loadingBar.style.width = '0%', 500);
-            }
-        };
-        img.onerror = () => {
-            container.style.display = 'none';
-        };
+    cam.pxPerMeter = Math.min(scaleX, scaleY);
+    cam.pxPerMeter = Math.max(MIN_SCALE, Math.min(MAX_SCALE, cam.pxPerMeter));
+    cam.x = (minX + maxX) / 2;
+    cam.y = (minY + maxY) / 2 + (headerH / 2) / cam.pxPerMeter;
+}
 
-        const label = document.createElement('div');
-        label.className = 'ship-label';
+function zoomAt(screenX, screenY, factor) {
+    const before = screenToWorld(screenX, screenY);
+    cam.pxPerMeter = Math.max(MIN_SCALE, Math.min(MAX_SCALE, cam.pxPerMeter * factor));
+    const after = screenToWorld(screenX, screenY);
+    cam.x += before.wx - after.wx;
+    cam.y += before.wy - after.wy;
+    draw();
+}
 
-        // Only show labels if ships are big enough
-        if (sizePx > 30) {
-            label.innerHTML = `${ship.name}<br><span class="ship-size">${formatSize(diameterM)}</span>`;
+// ---- Mouse / touch interaction ----
+let isDragging = false;
+let dragStartX, dragStartY;
+let dragStartCamX, dragStartCamY;
+let hasMoved = false;
+
+viewport.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT' || e.target.tagName === 'OPTION') return;
+    isDragging = true;
+    hasMoved = false;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragStartCamX = cam.x;
+    dragStartCamY = cam.y;
+    viewport.classList.add('dragging');
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
+    cam.x = dragStartCamX - dx / cam.pxPerMeter;
+    cam.y = dragStartCamY + dy / cam.pxPerMeter;
+    draw();
+});
+
+window.addEventListener('mouseup', () => {
+    isDragging = false;
+    viewport.classList.remove('dragging');
+});
+
+viewport.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    zoomAt(e.clientX, e.clientY, factor);
+}, { passive: false });
+
+// Touch: pinch to zoom, single finger to pan
+let touches = {};
+let lastPinchDist = 0;
+let lastPinchCenter = null;
+
+viewport.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+        touches[t.identifier] = { x: t.clientX, y: t.clientY };
+    }
+    const keys = Object.keys(touches);
+    if (keys.length === 1) {
+        isDragging = true;
+        hasMoved = false;
+        dragStartX = touches[keys[0]].x;
+        dragStartY = touches[keys[0]].y;
+        dragStartCamX = cam.x;
+        dragStartCamY = cam.y;
+    } else if (keys.length >= 2) {
+        const t0 = touches[keys[0]];
+        const t1 = touches[keys[1]];
+        lastPinchDist = Math.hypot(t1.x - t0.x, t1.y - t0.y);
+        lastPinchCenter = { x: (t0.x + t1.x) / 2, y: (t0.y + t1.y) / 2 };
+        isDragging = false;
+    }
+}, { passive: false });
+
+viewport.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+        touches[t.identifier] = { x: t.clientX, y: t.clientY };
+    }
+    const keys = Object.keys(touches);
+    if (keys.length === 1 && isDragging) {
+        const dx = touches[keys[0]].x - dragStartX;
+        const dy = touches[keys[0]].y - dragStartY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
+        cam.x = dragStartCamX - dx / cam.pxPerMeter;
+        cam.y = dragStartCamY + dy / cam.pxPerMeter;
+        draw();
+    } else if (keys.length >= 2 && lastPinchCenter) {
+        const t0 = touches[keys[0]];
+        const t1 = touches[keys[1]];
+        const dist = Math.hypot(t1.x - t0.x, t1.y - t0.y);
+        const center = { x: (t0.x + t1.x) / 2, y: (t0.y + t1.y) / 2 };
+
+        if (lastPinchDist > 0) {
+            const factor = dist / lastPinchDist;
+            zoomAt(center.x, center.y, factor);
         }
 
-        container.appendChild(img);
-        container.appendChild(label);
+        // Pan with pinch center movement
+        const panDx = center.x - lastPinchCenter.x;
+        const panDy = center.y - lastPinchCenter.y;
+        cam.x -= panDx / cam.pxPerMeter;
+        cam.y += panDy / cam.pxPerMeter;
 
-        // Tooltip events
-        container.addEventListener('mouseenter', (e) => showTooltip(e, ship));
-        container.addEventListener('mouseleave', hideTooltip);
-        container.addEventListener('mousemove', moveTooltip);
+        lastPinchDist = dist;
+        lastPinchCenter = center;
+        draw();
+    }
+}, { passive: false });
 
-        canvas.appendChild(container);
-    });
+viewport.addEventListener('touchend', (e) => {
+    for (const t of e.changedTouches) {
+        delete touches[t.identifier];
+    }
+    if (Object.keys(touches).length < 2) {
+        lastPinchDist = 0;
+        lastPinchCenter = null;
+    }
+    if (Object.keys(touches).length === 0) {
+        isDragging = false;
+    }
+});
 
-    updateRuler();
-    updateScaleInfo();
-}
+// Hover detection for tooltip
+let hoveredShip = null;
+viewport.addEventListener('mousemove', (e) => {
+    if (isDragging) { hideTooltip(); return; }
+    const { wx, wy } = screenToWorld(e.clientX, e.clientY);
+    let found = null;
+    for (const item of shipLayout) {
+        const half = item.size / 2;
+        if (wx >= item.x - half && wx <= item.x + half &&
+            wy >= item.y - half && wy <= item.y + half) {
+            found = item;
+            break;
+        }
+    }
+    if (found) {
+        if (hoveredShip !== found) {
+            hoveredShip = found;
+            showTooltip(e, found.ship);
+        }
+        moveTooltip(e);
+    } else {
+        hoveredShip = null;
+        hideTooltip();
+    }
+});
 
 function showTooltip(e, ship) {
     const tip = document.getElementById('tooltip');
@@ -472,7 +647,6 @@ function moveTooltip(e) {
     const tip = document.getElementById('tooltip');
     const x = e.clientX + 15;
     const y = e.clientY + 15;
-    // Keep tooltip on screen
     const maxX = window.innerWidth - tip.offsetWidth - 10;
     const maxY = window.innerHeight - tip.offsetHeight - 10;
     tip.style.left = Math.min(x, maxX) + 'px';
@@ -483,32 +657,27 @@ function hideTooltip() {
     document.getElementById('tooltip').classList.remove('visible');
 }
 
+// ---- Ruler ----
 function updateRuler() {
     const ruler = document.getElementById('ruler');
     ruler.innerHTML = '';
 
-    // Figure out a nice ruler height
-    const viewH = window.innerHeight - 150;
-    const rulerM = viewH / pxPerMeter;
-
-    // Pick nice round number
-    let niceM;
+    const viewH = window.innerHeight - 100;
     const candidates = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 50000, 100000];
-    niceM = candidates.find(c => c * pxPerMeter >= 40 && c * pxPerMeter <= viewH - 40) || candidates[candidates.length - 1];
+    const niceM = candidates.find(c => c * cam.pxPerMeter >= 30 && c * cam.pxPerMeter <= viewH * 0.4) || candidates[candidates.length - 1];
+    const barH = niceM * cam.pxPerMeter;
 
-    const barH = niceM * pxPerMeter;
+    if (barH < 10) return;
 
     const bar = document.createElement('div');
     bar.className = 'ruler-bar';
     bar.style.height = barH + 'px';
 
-    // Top tick
     const tickTop = document.createElement('div');
     tickTop.className = 'ruler-tick';
     tickTop.style.top = '0px';
     bar.appendChild(tickTop);
 
-    // Bottom tick
     const tickBot = document.createElement('div');
     tickBot.className = 'ruler-tick';
     tickBot.style.bottom = '0px';
@@ -523,52 +692,36 @@ function updateRuler() {
 }
 
 function updateScaleInfo() {
-    document.getElementById('px-per-m').textContent = pxPerMeter >= 1 ? pxPerMeter.toFixed(1) : pxPerMeter.toFixed(3);
+    const viewWidthM = canvas.width / cam.pxPerMeter;
+    document.getElementById('scale-text').textContent = `View: ${formatSize(viewWidthM)} wide`;
 }
 
-function setZoom(newPxPerM) {
-    pxPerMeter = Math.max(minPxPerMeter, Math.min(maxPxPerMeter, newPxPerM));
-    document.getElementById('zoom-display').textContent =
-        pxPerMeter >= 0.01 ? `${(pxPerMeter * 100).toFixed(0)}%` : `${(pxPerMeter * 100).toFixed(2)}%`;
-    render();
-}
+// ---- Keyboard ----
+document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    const panStep = canvas.width * 0.2 / cam.pxPerMeter;
+    switch (e.key) {
+        case '+': case '=': zoomAt(canvas.width / 2, canvas.height / 2, 1.5); break;
+        case '-': zoomAt(canvas.width / 2, canvas.height / 2, 1 / 1.5); break;
+        case '0': fitToContent(); draw(); break;
+        case 'ArrowLeft': cam.x -= panStep; draw(); break;
+        case 'ArrowRight': cam.x += panStep; draw(); break;
+        case 'ArrowUp': cam.y += panStep; draw(); break;
+        case 'ArrowDown': cam.y -= panStep; draw(); break;
+    }
+});
 
-function fitToScreen() {
-    if (filteredShips.length === 0) return;
-    const maxRadius = Math.max(...filteredShips.map(s => s.radius));
-    const maxDiameter = maxRadius * 2;
-    const viewH = window.innerHeight - 200;
-    const targetPx = Math.min(viewH, 600);
-    setZoom(targetPx / maxDiameter);
-}
-
-// Event listeners
+// ---- Filter event listeners ----
 document.getElementById('group-filter').addEventListener('change', applyFilters);
 document.getElementById('search').addEventListener('input', applyFilters);
 document.getElementById('sort-by').addEventListener('change', applyFilters);
-document.getElementById('zoom-in').addEventListener('click', () => setZoom(pxPerMeter * 1.5));
-document.getElementById('zoom-out').addEventListener('click', () => setZoom(pxPerMeter / 1.5));
-document.getElementById('zoom-fit').addEventListener('click', fitToScreen);
 
-// Keyboard zoom
-document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT') return;
-    if (e.key === '+' || e.key === '=') setZoom(pxPerMeter * 1.5);
-    if (e.key === '-') setZoom(pxPerMeter / 1.5);
-    if (e.key === '0') fitToScreen();
-});
+// Prevent header interactions from triggering canvas drag
+document.querySelector('header').addEventListener('mousedown', (e) => e.stopPropagation());
+document.querySelector('header').addEventListener('touchstart', (e) => e.stopPropagation());
 
-// Mouse wheel zoom
-document.getElementById('viewport').addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-    setZoom(pxPerMeter * factor);
-}, { passive: false });
-
-// Init
-loadData().then(() => {
-    fitToScreen();
-});
+// ---- Init ----
+loadData();
 </script>
 
 </body>
