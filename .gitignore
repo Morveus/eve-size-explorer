@@ -1,6 +1,5 @@
 data/*.sqlite
 data/*.bz2
-renders/
 __pycache__/
 *.pyc
 .env
